@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"encoding/gob"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -74,12 +75,14 @@ func (s *Server) loop() {
 			}
 			_ = peer
 		case msg := <-s.msgCh:
-			fmt.Println(msg)
+			slog.Info("recieving :", "msg", msg)
+			s.handleMessage(msg)
 			_ = msg
 		}
 	}
 }
 
+// function to handle incoming new peer and read all the message that peer had sent
 func (s *Server) handleIncomingNewPeer(p *Peer) error {
 	if err := s.handshake(p); err != nil {
 		s.removeAndClosePeerConnection(p)
@@ -96,6 +99,30 @@ func (s *Server) handleIncomingNewPeer(p *Peer) error {
 		s.removeAndClosePeerConnection(p)
 	}
 
+	return nil
+}
+
+// handling message that coming from client
+// we handle the type of the payload first (incase we might change the way we communicate with server)
+// second we handle the command that user can input to server
+func (s *Server) handleMessage(msg *Message) error {
+	switch v := msg.Payload.(type) {
+	case CommandHelp:
+		fmt.Println("Help command received")
+	case string:
+		switch v {
+		case CommandHelp{}.String():
+			s.peers[msg.From].Send([]byte(
+				"1. /create-room \t\t[to create a room and you will be a dealer, you can create only one room per time]\n" +
+					"2. /list-room \t\t\t[list all the rooms that you can join]\n" +
+					"3. /join-room/(roomId) \t\t[join the room with roomId]\n" +
+					"4. /delete-room/(roomId) \t[only owner can delete and also]\n"))
+		default:
+			fmt.Println("Message from normal string", v)
+		}
+	default:
+		fmt.Println("default case of type here", v)
+	}
 	return nil
 }
 
@@ -121,4 +148,8 @@ func (s *Server) handshake(p *Peer) error {
 func (s *Server) removeAndClosePeerConnection(p *Peer) {
 	p.conn.Close()
 	delete(s.peers, p.conn.RemoteAddr().String())
+}
+
+func init() {
+	gob.Register(CommandHelp{})
 }
