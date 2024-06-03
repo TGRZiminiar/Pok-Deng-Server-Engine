@@ -5,12 +5,6 @@ import (
 	"net"
 )
 
-type Peer struct {
-	conn       net.Conn
-	listenAddr string
-	outbound   bool
-}
-
 type TCPTransport struct {
 	listenAddr string
 	listener   net.Listener
@@ -26,6 +20,7 @@ func NewTCPTransport(addr string) *TCPTransport {
 // make a server listen and accept the connection
 // and send a channel signal to the read loop to make recieve a new peer
 func (t *TCPTransport) ListenAndAccept() error {
+	slog.Info("Server listening on port", "listenAddr", t.listenAddr)
 	ln, err := net.Listen("tcp", t.listenAddr)
 	if err != nil {
 		return err
@@ -39,14 +34,11 @@ func (t *TCPTransport) ListenAndAccept() error {
 			slog.Error("listener connection accept failed ", "conn", conn)
 			continue
 		}
-
 		peer := &Peer{
 			conn:     conn,
 			outbound: false,
 		}
-
 		t.AddPeer <- peer
-
 	}
 
 }
