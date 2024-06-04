@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 )
 
@@ -19,6 +20,7 @@ type Server struct {
 	addPeer      chan *Peer
 	delPeer      chan *Peer
 	msgCh        chan *Message
+	rooms        map[string]*Room
 }
 
 func NewServer(cfg ServerConfig) *Server {
@@ -36,6 +38,7 @@ func NewServer(cfg ServerConfig) *Server {
 		delPeer:      make(chan *Peer),
 		tcpTransport: transport,
 		msgCh:        make(chan *Message, 100),
+		rooms:        make(map[string]*Room),
 	}
 	// when accpet the connection so we can trigger the read loop usingb channel
 	transport.AddPeer = s.addPeer
@@ -106,17 +109,30 @@ func (s *Server) handleIncomingNewPeer(p *Peer) error {
 // we handle the type of the payload first (incase we might change the way we communicate with server)
 // second we handle the command that user can input to server
 func (s *Server) handleMessage(msg *Message) error {
+	peer := s.peers[msg.From]
 	switch v := msg.Payload.(type) {
 	case CommandHelp:
 		fmt.Println("Help command received")
 	case string:
-		switch v {
-		case CommandHelp{}.String():
-			s.peers[msg.From].Send([]byte(
+		switch {
+		case v == CommandHelp{}.String():
+			peer.Send([]byte(
 				"1. /create-room \t\t[to create a room and you will be a dealer, you can create only one room per time]\n" +
 					"2. /list-room \t\t\t[list all the rooms that you can join]\n" +
-					"3. /join-room/(roomId) \t\t[join the room with roomId]\n" +
-					"4. /delete-room/(roomId) \t[only owner can delete and also]\n"))
+					"3. /join-room (roomId) \t\t[join the room with roomId]\n" +
+					"4. /delete-room (roomId) \t[only owner can delete and also]\n"))
+
+		case v == CommandCreateRoom{}.String():
+			s.handleCreateRoom(peer)
+		case v == CommandListRoom{}.String():
+			s.handleListRoom(peer)
+		case strings.HasPrefix(v, "/join-room"):
+			roomId := strings.TrimSpace(strings.SplitN(v, " ", 2)[1])
+			fmt.Println("/join oroom")
+			s.handleJoinRoom(peer, roomId)
+			// Handle /join-room command with room ID
+			// roomId := strings.TrimSpace(strings.SplitN(v, " ", 2)[1]) // Extract room ID
+			// s.handleJoinRoom(msg.From, roomId)
 		default:
 			fmt.Println("Message from normal string", v)
 		}
