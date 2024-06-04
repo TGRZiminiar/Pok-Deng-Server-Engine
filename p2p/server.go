@@ -128,11 +128,9 @@ func (s *Server) handleMessage(msg *Message) error {
 			s.handleListRoom(peer)
 		case strings.HasPrefix(v, "/join-room"):
 			roomId := strings.TrimSpace(strings.SplitN(v, " ", 2)[1])
-			fmt.Println("/join oroom")
 			s.handleJoinRoom(peer, roomId)
-			// Handle /join-room command with room ID
-			// roomId := strings.TrimSpace(strings.SplitN(v, " ", 2)[1]) // Extract room ID
-			// s.handleJoinRoom(msg.From, roomId)
+		case v == CommandCurrentRoom{}.String():
+			s.handleCurrentRoom(peer)
 		default:
 			fmt.Println("Message from normal string", v)
 		}

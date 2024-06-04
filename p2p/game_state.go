@@ -36,7 +36,7 @@ type Player struct {
 
 type Room struct {
 	RoomId    string
-	Players   []*Player
+	Players   map[string]*Player
 	RoomOwner *Player
 	GameState GameState
 	roomLock  sync.RWMutex
@@ -93,10 +93,13 @@ func NewPlayer(isOwner bool, p *Peer) *Player {
 func CreateRoom(p *Peer) *Room {
 	id, _ := gonanoid.Generate("0123456789", 8)
 	owner := NewPlayer(true, p)
+	var players map[string]*Player = make(map[string]*Player)
+	players[p.conn.RemoteAddr().String()] = owner
+
 	return &Room{
 		roomLock:  sync.RWMutex{},
 		RoomId:    id,
-		Players:   []*Player{owner},
+		Players:   players,
 		RoomOwner: owner,
 		GameState: GameState{
 			currentHand: NewAtomicInt(-1),

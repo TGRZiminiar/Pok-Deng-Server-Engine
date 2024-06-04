@@ -28,3 +28,9 @@ type CommandJoinRoom struct{}
 func (cmd CommandJoinRoom) String() string {
 	return "/join-room"
 }
+
+type CommandCurrentRoom struct{}
+
+func (cmd CommandCurrentRoom) String() string {
+	return "/cr"
+}
