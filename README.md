@@ -12,3 +12,7 @@
 2.1.4 /delete-room/(roomId) only owner can delete and also delete every room if the owner of the room disconnected
 4. First peer will have starter money of 1000
 5. Game state using atomic value to change the game state
+
+
+/create-room
+/join-room 123

@@ -2,8 +2,6 @@ package p2p
 
 import (
 	"sync"
-
-	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
 type PlayerAction int
@@ -91,14 +89,14 @@ func NewPlayer(isOwner bool, p *Peer) *Player {
 }
 
 func CreateRoom(p *Peer) *Room {
-	id, _ := gonanoid.Generate("0123456789", 8)
+	// id, _ := gonanoid.Generate("0123456789", 8)
 	owner := NewPlayer(true, p)
 	var players map[string]*Player = make(map[string]*Player)
 	players[p.conn.RemoteAddr().String()] = owner
 
 	return &Room{
 		roomLock:  sync.RWMutex{},
-		RoomId:    id,
+		RoomId:    "123",
 		Players:   players,
 		RoomOwner: owner,
 		GameState: GameState{

@@ -2,7 +2,9 @@ package p2p
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 )
 
 // create the room and the owner of the room is the person who create it by default
@@ -51,24 +53,35 @@ func (s *Server) handleListRoom(p *Peer) {
 
 func (s *Server) handleJoinRoom(p *Peer, roomId string) {
 	var text string
+
 	room, ok := s.rooms[roomId]
-	if !ok {
-		text = "\nRoom " + roomId + " is not exist\n"
-	} else {
-		roomId, exist := s.playerInAnyRoom(p)
+	if ok {
+		_, exist := s.playerInAnyRoom(p)
+
 		if !exist {
 			defer room.roomLock.Unlock()
 			room.roomLock.Lock()
+
+			id := p.conn.RemoteAddr().String()
 			player := NewPlayer(false, p)
-			room.Players[p.conn.RemoteAddr().String()] = player
+			room.Players[id] = player
+
+			if err := s.broadcastInRoom(roomId, fmt.Sprintf("bc -> new player [%s] have join the room (%d/%d)", id, len(room.Players), room.maxPlayer)); err != nil {
+				s.removeAndClosePeerConnection(p)
+			}
+
 			text = "\nJoin room " + roomId + " success!\n"
+
 		} else {
 			text = fmt.Sprintf("\nYou already have a room that you have joined %s\n\n", roomId)
 		}
+	} else {
+		text = "\nRoom " + roomId + " is not exist\n"
 	}
 	p.Send([]byte(text))
 }
 
+// handleCurrentRoom just to show the player where is he like now
 func (s *Server) handleCurrentRoom(p *Peer) {
 	var room *Room = nil
 	id := p.conn.RemoteAddr().String()
@@ -87,6 +100,30 @@ func (s *Server) handleCurrentRoom(p *Peer) {
 	}
 }
 
+// broadcast to every peers in room isong multiwriter
+func (s *Server) broadcastInRoom(roomId string, msg string) error {
+	room, exists := s.rooms[roomId]
+	if !exists {
+		return errors.New("RoomId does not exist")
+	}
+
+	peers := make([]io.Writer, 0, len(room.Players))
+
+	for _, player := range room.Players {
+		if player.Peer != nil && player.Peer.conn != nil {
+			peers = append(peers, player.conn)
+		}
+	}
+
+	mw := io.MultiWriter(peers...)
+
+	if _, err := mw.Write([]byte(msg)); err != nil {
+		return err
+	}
+	return nil
+}
+
+// returning an roomid and if a peer is in any room or not
 func (s *Server) playerInAnyRoom(p *Peer) (string, bool) {
 	var exist bool = false
 	id := p.conn.RemoteAddr().String()

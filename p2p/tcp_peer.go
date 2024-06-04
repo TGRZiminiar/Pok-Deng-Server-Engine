@@ -45,10 +45,11 @@ func (p *Peer) PeerReadLoop(msgch chan *Message) {
 	// }
 }
 
-func (p *Peer) Send(b []byte) (int, error) {
-	return p.conn.Write(b)
+func (p *Peer) Send(message []byte) {
+	if p.conn != nil {
+		p.conn.Write(message)
+	}
 }
-
 func init() {
 	gob.Register(CommandHelp{})
 }

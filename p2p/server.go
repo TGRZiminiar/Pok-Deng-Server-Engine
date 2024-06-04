@@ -124,15 +124,19 @@ func (s *Server) handleMessage(msg *Message) error {
 
 		case v == CommandCreateRoom{}.String():
 			s.handleCreateRoom(peer)
+
 		case v == CommandListRoom{}.String():
 			s.handleListRoom(peer)
+
 		case strings.HasPrefix(v, "/join-room"):
 			roomId := strings.TrimSpace(strings.SplitN(v, " ", 2)[1])
 			s.handleJoinRoom(peer, roomId)
+
 		case v == CommandCurrentRoom{}.String():
 			s.handleCurrentRoom(peer)
+
 		default:
-			fmt.Println("Message from normal string", v)
+			// fmt.Println("Message from normal string", v)
 		}
 	default:
 		fmt.Println("default case of type here", v)
@@ -154,6 +158,9 @@ func (s *Server) checkPeerInPeers(p *Peer) bool {
 	return ok
 }
 
+// currenty we just implementing just a simple string
+// so we doesn't need to handshake with th other
+// basically how  can we handshake with just a simple string lol
 func (s *Server) handshake(p *Peer) error {
 	return nil
 }
