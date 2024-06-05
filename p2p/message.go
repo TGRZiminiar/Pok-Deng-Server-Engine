@@ -32,5 +32,17 @@ func (cmd CommandJoinRoom) String() string {
 type CommandCurrentRoom struct{}
 
 func (cmd CommandCurrentRoom) String() string {
-	return "/cr"
+	return "/current-room"
+}
+
+type CommandStartGame struct{}
+
+func (cmd CommandStartGame) String() string {
+	return "/start"
+}
+
+type CommandCurrentGame struct{}
+
+func (cmd CommandCurrentGame) String() string {
+	return "/current-game"
 }

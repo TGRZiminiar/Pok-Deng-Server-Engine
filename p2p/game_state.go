@@ -2,6 +2,8 @@ package p2p
 
 import (
 	"sync"
+
+	"github.com/tgrziminiar/pok-deng-server-engine/deck"
 )
 
 type PlayerAction int
@@ -28,6 +30,7 @@ type Player struct {
 	Money   int
 	Bet     int
 	Action  *AtomicInt
+	Card    [3]deck.Card
 	lock    sync.RWMutex
 	isOwner bool
 }
@@ -39,6 +42,7 @@ type Room struct {
 	GameState GameState
 	roomLock  sync.RWMutex
 	maxPlayer int
+	Deck      []deck.Card
 }
 
 type GameState struct {
@@ -51,7 +55,7 @@ type GameStatus int32
 const (
 	// GameStatusRoomReady if every player is ready
 	GameStatusRoomReady GameStatus = iota
-
+	GameStatusRoomStart
 	// GameStatusRoomNotReady if not every player is ready
 	GameStatusRoomNotReady
 
@@ -104,5 +108,30 @@ func CreateRoom(p *Peer) *Room {
 			gameStatus:  NewAtomicInt(int32(GameStatusRoomNotReady)),
 		},
 		maxPlayer: 10,
+		Deck:      deck.NewDeck(),
+	}
+}
+
+func (g *GameState) SetStatus(s GameStatus, hand int32) {
+	g.gameStatus.Set(int32(s))
+	g.currentHand.Set(hand)
+}
+
+func (g *GameState) currentGameStatus() string {
+	switch GameStatus(g.gameStatus.Get()) {
+	case GameStatusRoomReady:
+		return "Game is ready to start."
+	case GameStatusRoomStart:
+		return "Game is starting."
+	case GameStatusRoomNotReady:
+		return "Game is not ready. Waiting for all players to be ready."
+	case GameStatusPok:
+		return "The owner of the room got Pok!"
+	case GameStatusNotPok:
+		return "The owner of the room did not get Pok. Drawing a new card or staying."
+	case GameStatusEnd:
+		return "Game has ended."
+	default:
+		return "Unknown game status."
 	}
 }

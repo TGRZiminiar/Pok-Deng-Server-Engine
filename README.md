@@ -13,6 +13,7 @@
 4. First peer will have starter money of 1000
 5. Game state using atomic value to change the game state
 
-
+telnet localhost 3000
 /create-room
 /join-room 123
+/start

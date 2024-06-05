@@ -2,7 +2,9 @@ package p2p
 
 import (
 	"encoding/gob"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 	"sync"
@@ -134,12 +136,39 @@ func (s *Server) handleMessage(msg *Message) error {
 
 		case v == CommandCurrentRoom{}.String():
 			s.handleCurrentRoom(peer)
+		case v == CommandStartGame{}.String():
+			s.handleGameStart(peer)
+		case v == CommandCurrentGame{}.String():
+			s.handleCurrentGame(peer)
 
 		default:
 			// fmt.Println("Message from normal string", v)
 		}
 	default:
 		fmt.Println("default case of type here", v)
+	}
+	return nil
+}
+
+// broadcast to every peers in room isong multiwriter
+func (s *Server) broadcastSameMessage(roomId string, msg string) error {
+	room, exists := s.rooms[roomId]
+	if !exists {
+		return errors.New("RoomId does not exist")
+	}
+
+	peers := make([]io.Writer, 0, len(room.Players))
+
+	for _, player := range room.Players {
+		if player.Peer != nil && player.Peer.conn != nil {
+			peers = append(peers, player.conn)
+		}
+	}
+
+	mw := io.MultiWriter(peers...)
+
+	if _, err := mw.Write([]byte(msg)); err != nil {
+		return err
 	}
 	return nil
 }
@@ -160,7 +189,7 @@ func (s *Server) checkPeerInPeers(p *Peer) bool {
 
 // currenty we just implementing just a simple string
 // so we doesn't need to handshake with th other
-// basically how  can we handshake with just a simple string lol
+// basically how can we handshake with just a simple string lol
 func (s *Server) handshake(p *Peer) error {
 	return nil
 }

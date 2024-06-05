@@ -2,9 +2,7 @@ package p2p
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	"io"
 )
 
 // create the room and the owner of the room is the person who create it by default
@@ -66,7 +64,7 @@ func (s *Server) handleJoinRoom(p *Peer, roomId string) {
 			player := NewPlayer(false, p)
 			room.Players[id] = player
 
-			if err := s.broadcastInRoom(roomId, fmt.Sprintf("bc -> new player [%s] have join the room (%d/%d)", id, len(room.Players), room.maxPlayer)); err != nil {
+			if err := s.broadcastSameMessage(roomId, fmt.Sprintf("\nbc -> new player [%s] have join the room (%d/%d)\n", id, len(room.Players), room.maxPlayer)); err != nil {
 				s.removeAndClosePeerConnection(p)
 			}
 
@@ -100,29 +98,6 @@ func (s *Server) handleCurrentRoom(p *Peer) {
 	}
 }
 
-// broadcast to every peers in room isong multiwriter
-func (s *Server) broadcastInRoom(roomId string, msg string) error {
-	room, exists := s.rooms[roomId]
-	if !exists {
-		return errors.New("RoomId does not exist")
-	}
-
-	peers := make([]io.Writer, 0, len(room.Players))
-
-	for _, player := range room.Players {
-		if player.Peer != nil && player.Peer.conn != nil {
-			peers = append(peers, player.conn)
-		}
-	}
-
-	mw := io.MultiWriter(peers...)
-
-	if _, err := mw.Write([]byte(msg)); err != nil {
-		return err
-	}
-	return nil
-}
-
 // returning an roomid and if a peer is in any room or not
 func (s *Server) playerInAnyRoom(p *Peer) (string, bool) {
 	var exist bool = false
@@ -132,7 +107,6 @@ func (s *Server) playerInAnyRoom(p *Peer) (string, bool) {
 		if ok {
 			return v.RoomId, ok
 		}
-
 	}
 
 	return "", exist

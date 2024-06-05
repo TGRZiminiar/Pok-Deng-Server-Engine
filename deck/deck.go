@@ -42,7 +42,7 @@ func (c Card) String() string {
 		value = "ACE"
 	}
 
-	return fmt.Sprintf("%s of %s %s", value, c.Suit, suitToUnicode(c.Suit))
+	return fmt.Sprintf("%s of %s %s", value, c.Suit, SuitToUnicode(c.Suit))
 }
 func (c Card) SpecialCardValue(val int) string {
 	switch val {
@@ -69,14 +69,14 @@ func NewCard(s Suit, v int) Card {
 	}
 }
 
-type Deck [52]Card
+type Deck []Card
 
 func NewDeck() Deck {
 	var (
 		nSuits = 4
 		nCards = 13
-		d      = [52]Card{}
 	)
+	d := make([]Card, 52)
 
 	x := 0
 	for i := 0; i < nSuits; i++ {
@@ -85,11 +85,11 @@ func NewDeck() Deck {
 			x++
 		}
 	}
-
-	return shuffle(d)
+	return d
+	// return Shuffle(d)
 }
 
-func shuffle(d Deck) Deck {
+func Shuffle(d Deck) Deck {
 	for i := 0; i < len(d); i++ {
 		r := rand.Intn(i + 1)
 
@@ -101,7 +101,7 @@ func shuffle(d Deck) Deck {
 	return d
 }
 
-func suitToUnicode(s Suit) string {
+func SuitToUnicode(s Suit) string {
 	switch s {
 	case Spades:
 		return handleColor(34, "♠")
