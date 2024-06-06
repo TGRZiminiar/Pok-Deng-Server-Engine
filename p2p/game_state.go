@@ -1,6 +1,8 @@
 package p2p
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/tgrziminiar/pok-deng-server-engine/deck"
@@ -87,7 +89,7 @@ func NewPlayer(isOwner bool, p *Peer) *Player {
 		isOwner:      isOwner,
 		Money:        1000,
 		Peer:         p,
-		Bet:          -1,
+		Bet:          10,
 		PlayerAction: NewAtomicInt(int32(PlayerActionNotReady)),
 	}
 }
@@ -174,8 +176,21 @@ func CalculatePok(cards []deck.Card) (int, int) {
 // return isPok, value, deng
 func (p *Player) CulculateTwoCard() (bool, int, int) {
 	if len(p.Card) < 2 {
-		return false, 0, 0
+		return false, 0, 1
 	}
 	points, deng := CalculatePok(p.Card[:2])
 	return points == 8 || points == 9, points, deng
+}
+
+// return a string of a current value and suit of the card that you holding
+func (p *Player) CurrentCard() string {
+
+	var cards []string
+	for _, v := range p.Card {
+		if v.Value != 0 {
+			cardDetail := fmt.Sprintf("%s%s", deck.SuitToUnicode(v.Suit), v.SpecialCardValue(v.Value))
+			cards = append(cards, cardDetail)
+		}
+	}
+	return fmt.Sprint(strings.Join(cards, " "))
 }
