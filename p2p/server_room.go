@@ -71,7 +71,7 @@ func (s *Server) handleJoinRoom(p *Peer, roomId string) {
 			text = "\nJoin room " + roomId + " success!\n"
 
 		} else {
-			text = fmt.Sprintf("\nYou already have a room that you have joined %s\n\n", roomId)
+			text = fmt.Sprintf("\nYou already have a room that you have joined your room is: %s\n\n", roomId)
 		}
 	} else {
 		text = "\nRoom " + roomId + " is not exist\n"

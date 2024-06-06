@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
@@ -200,6 +199,6 @@ func (s *Server) removeAndClosePeerConnection(p *Peer) {
 	delete(s.peers, p.conn.RemoteAddr().String())
 }
 
-func init() {
-	gob.Register(CommandHelp{})
-}
+// func init() {
+// 	gob.Register(CommandHelp{})
+// }

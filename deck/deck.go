@@ -12,8 +12,8 @@ func (s Suit) String() string {
 	switch s {
 	case Spades:
 		return "SPADES"
-	case Harts:
-		return "HARTS"
+	case Hearts:
+		return "Hearts"
 	case Diamonds:
 		return "DIAMONDS"
 	case Clubs:
@@ -26,7 +26,7 @@ func (s Suit) String() string {
 
 const (
 	Spades   Suit = iota // 0
-	Harts                // 1
+	Hearts               // 1
 	Diamonds             // 2
 	Clubs                // 3
 )
@@ -105,7 +105,7 @@ func SuitToUnicode(s Suit) string {
 	switch s {
 	case Spades:
 		return handleColor(34, "♠")
-	case Harts:
+	case Hearts:
 		return handleColor(31, "❤️")
 	case Diamonds:
 		return handleColor(31, "♦")

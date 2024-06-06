@@ -6,7 +6,7 @@ import (
 	"github.com/tgrziminiar/pok-deng-server-engine/deck"
 )
 
-type PlayerAction int
+type PlayerAction int32
 
 const (
 	// PlayerActionReady player read to play
@@ -27,12 +27,12 @@ const (
 
 type Player struct {
 	*Peer
-	Money   int
-	Bet     int
-	Action  *AtomicInt
-	Card    [3]deck.Card
-	lock    sync.RWMutex
-	isOwner bool
+	Money        int
+	Bet          int
+	PlayerAction *AtomicInt
+	Card         [3]deck.Card
+	lock         sync.RWMutex
+	isOwner      bool
 }
 
 type Room struct {
@@ -83,12 +83,12 @@ const (
 
 func NewPlayer(isOwner bool, p *Peer) *Player {
 	return &Player{
-		lock:    sync.RWMutex{},
-		isOwner: isOwner,
-		Money:   1000,
-		Peer:    p,
-		Bet:     -1,
-		Action:  NewAtomicInt(int32(PlayerActionNotReady)),
+		lock:         sync.RWMutex{},
+		isOwner:      isOwner,
+		Money:        1000,
+		Peer:         p,
+		Bet:          -1,
+		PlayerAction: NewAtomicInt(int32(PlayerActionNotReady)),
 	}
 }
 
@@ -134,4 +134,48 @@ func (g *GameState) currentGameStatus() string {
 	default:
 		return "Unknown game status."
 	}
+}
+func (p *Player) currentPlayerAction() string {
+	switch PlayerAction(p.PlayerAction.Get()) {
+	case PlayerActionReady:
+		return "Player is ready"
+	case PlayerActionBet:
+		return "Player should type the amount they want to bet"
+	case PlayerActionNotReady:
+		return "Player is not ready"
+	case PlayerActionPok:
+		return "Player got pok"
+	case PlayerActionStay:
+		return "Player satisfy with cards"
+	default:
+		return "Unknown current hand status"
+	}
+}
+
+// Calculate the points for a given set of cards
+// it return a value of a card and the multiply of the bet
+func CalculatePok(cards []deck.Card) (int, int) {
+	total := 0
+	deng := 1
+	for _, card := range cards {
+		val := card.Value
+		if val > 10 {
+			val = 10
+		}
+		total += val
+	}
+	if cards[0].Suit == cards[1].Suit || cards[0].Value == cards[1].Value {
+		deng = 2
+	}
+	return int(total % 10), int(deng)
+}
+
+// Check if a player has a Pok (8 or 9 points with the first two cards)
+// return isPok, value, deng
+func (p *Player) CulculateTwoCard() (bool, int, int) {
+	if len(p.Card) < 2 {
+		return false, 0, 0
+	}
+	points, deng := CalculatePok(p.Card[:2])
+	return points == 8 || points == 9, points, deng
 }

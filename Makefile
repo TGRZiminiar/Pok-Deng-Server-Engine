@@ -7,4 +7,5 @@ run: build
 test:
 	@go test ./... -v
 
-	
+t:
+	@telnet localhost 3000
