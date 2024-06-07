@@ -153,6 +153,8 @@ func (s *Server) handleMessage(msg *Message) error {
 			s.handleCurrentGame(peer)
 		case v == CommandStay{}.String():
 			s.handlePlayerStay(peer)
+		case v == CommandExtraCard{}.String():
+			s.handlePlayerMoreExtraCard(peer)
 
 		default:
 			// fmt.Println("Message from normal string", v)
