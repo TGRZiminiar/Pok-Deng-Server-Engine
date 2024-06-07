@@ -14,7 +14,7 @@ func (cmd CommandHelp) String() string {
 type CommandCreateRoom struct{}
 
 func (cmd CommandCreateRoom) String() string {
-	return "/create-room"
+	return "/cr"
 }
 
 type CommandListRoom struct{}
@@ -45,4 +45,16 @@ type CommandCurrentGame struct{}
 
 func (cmd CommandCurrentGame) String() string {
 	return "/current-game"
+}
+
+type CommandStay struct{}
+
+func (cmd CommandStay) String() string {
+	return "/stay"
+}
+
+type CommandExtraCard struct{}
+
+func (cmd CommandExtraCard) String() string {
+	return "/more"
 }

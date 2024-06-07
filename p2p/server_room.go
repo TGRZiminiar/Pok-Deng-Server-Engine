@@ -13,7 +13,7 @@ func (s *Server) handleCreateRoom(p *Peer) *Room {
 		room := CreateRoom(p)
 
 		s.addRoom(room)
-		p.Send([]byte(fmt.Sprintf("\nCreate room success!\nYour roomId is : %s\n\n", room.RoomId)))
+		p.Send([]byte(fmt.Sprintf("\nCreate room success!\nYour roomId is : %s\nYou are player %d\n", room.RoomId, 1)))
 		return room
 
 	} else {
@@ -53,7 +53,9 @@ func (s *Server) handleJoinRoom(p *Peer, roomId string) {
 	var text string
 
 	room, ok := s.rooms[roomId]
-	if ok {
+	if !ok {
+		text = "\nRoom " + roomId + " is not exist\n"
+	} else {
 		_, exist := s.playerInAnyRoom(p)
 
 		if !exist {
@@ -61,20 +63,18 @@ func (s *Server) handleJoinRoom(p *Peer, roomId string) {
 			room.roomLock.Lock()
 
 			id := p.conn.RemoteAddr().String()
-			player := NewPlayer(false, p)
+			player := NewPlayer(false, p, len(room.Players)+1)
 			room.Players[id] = player
 
-			if err := s.broadcastSameMessage(roomId, fmt.Sprintf("\nbc -> new player [%s] have join the room (%d/%d)\n", id, len(room.Players), room.maxPlayer)); err != nil {
+			if err := s.broadcastSameMessage(roomId, fmt.Sprintf("\nbc -> new player [%d] have join the room (%d/%d)\n", player.HandNumber, len(room.Players), room.maxPlayer)); err != nil {
 				s.removeAndClosePeerConnection(p)
 			}
 
-			text = "\nJoin room " + roomId + " success!\n"
+			text = "\nJoin room " + roomId + " success!\nYou are player" + fmt.Sprint(player.HandNumber) + "!\n"
 
 		} else {
 			text = fmt.Sprintf("\nYou already have a room that you have joined your room is: %s\n\n", roomId)
 		}
-	} else {
-		text = "\nRoom " + roomId + " is not exist\n"
 	}
 	p.Send([]byte(text))
 }

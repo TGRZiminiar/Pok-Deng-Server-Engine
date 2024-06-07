@@ -23,25 +23,34 @@ const (
 	// PlayerActionStay player satisfy with 2 cards
 	PlayerActionStay
 
+	// PlayerActionExtraCard player ask for another card so palyer should have 3 cards
+	PlayerActionExtraCard
+
 	// PlayerActionStay player got a pok card
 	PlayerActionPok
 )
 
 type Player struct {
 	*Peer
-	Money        int
-	Bet          int
-	PlayerAction *AtomicInt
-	Card         [3]deck.Card
-	lock         sync.RWMutex
-	isOwner      bool
+	HandNumber     int
+	Money          int
+	Bet            int
+	PlayerAction   *AtomicInt
+	Card           [3]deck.Card
+	lock           sync.RWMutex
+	isOwner        bool
+	PlayerActionCh chan (*PlayerActionMsg)
+}
+type PlayerActionMsg struct {
+	PlayerID string
+	Action   string
 }
 
 type Room struct {
 	RoomId    string
 	Players   map[string]*Player
 	RoomOwner *Player
-	GameState GameState
+	GameState *GameState
 	roomLock  sync.RWMutex
 	maxPlayer int
 	Deck      []deck.Card
@@ -57,12 +66,18 @@ type GameStatus int32
 const (
 	// GameStatusRoomReady if every player is ready
 	GameStatusRoomReady GameStatus = iota
+
+	// GameStatusRoomStart game have been start
 	GameStatusRoomStart
+
 	// GameStatusRoomNotReady if not every player is ready
 	GameStatusRoomNotReady
 
 	// GameStatusPok The Owner of the room got pok
 	GameStatusPok
+
+	// GameStatusExtraCard The Owner of the room got pok
+	GameStatusExtraCard
 
 	// GameStatusNotPok The owner of the room is not getting pok
 	// drawing a new card or stay
@@ -72,41 +87,32 @@ const (
 	GameStatusEnd
 )
 
-// func NewRoom() *Room {
-// 	r := &Room{
-// 		roomLock:  sync.RWMutex{},
-// 		Players:   []*Player{},
-// 		RoomOwner: &Player{},
-// 		GameState: GameState{},
-// 	}
-
-// 	return r
-// }
-
-func NewPlayer(isOwner bool, p *Peer) *Player {
+func NewPlayer(isOwner bool, p *Peer, handNumber int) *Player {
 	return &Player{
-		lock:         sync.RWMutex{},
-		isOwner:      isOwner,
-		Money:        1000,
-		Peer:         p,
-		Bet:          10,
-		PlayerAction: NewAtomicInt(int32(PlayerActionNotReady)),
+		lock:           sync.RWMutex{},
+		isOwner:        isOwner,
+		Money:          1000,
+		Peer:           p,
+		HandNumber:     handNumber,
+		Bet:            10,
+		PlayerAction:   NewAtomicInt(int32(PlayerActionNotReady)),
+		PlayerActionCh: make(chan *PlayerActionMsg),
 	}
 }
 
 func CreateRoom(p *Peer) *Room {
 	// id, _ := gonanoid.Generate("0123456789", 8)
-	owner := NewPlayer(true, p)
+	owner := NewPlayer(true, p, 1)
 	var players map[string]*Player = make(map[string]*Player)
 	players[p.conn.RemoteAddr().String()] = owner
 
 	return &Room{
 		roomLock:  sync.RWMutex{},
-		RoomId:    "123",
+		RoomId:    "1",
 		Players:   players,
 		RoomOwner: owner,
-		GameState: GameState{
-			currentHand: NewAtomicInt(-1),
+		GameState: &GameState{
+			currentHand: NewAtomicInt(0),
 			gameStatus:  NewAtomicInt(int32(GameStatusRoomNotReady)),
 		},
 		maxPlayer: 10,
@@ -129,6 +135,8 @@ func (g *GameState) currentGameStatus() string {
 		return "Game is not ready. Waiting for all players to be ready."
 	case GameStatusPok:
 		return "The owner of the room got Pok!"
+	case GameStatusExtraCard:
+		return "Every player can ask for an extra card"
 	case GameStatusNotPok:
 		return "The owner of the room did not get Pok. Drawing a new card or staying."
 	case GameStatusEnd:

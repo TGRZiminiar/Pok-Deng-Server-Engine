@@ -130,15 +130,29 @@ func (s *Server) handleMessage(msg *Message) error {
 			s.handleListRoom(peer)
 
 		case strings.HasPrefix(v, "/join-room"):
-			roomId := strings.TrimSpace(strings.SplitN(v, " ", 2)[1])
-			s.handleJoinRoom(peer, roomId)
+			parts := strings.SplitN(v, " ", 2)
+			if len(parts) < 2 {
+				fmt.Println("no room id provided")
+				peer.Send([]byte("\nno roomId found!\n"))
+			} else {
+				roomId := strings.TrimSpace(parts[1])
+				if roomId == "" {
+					fmt.Println("no room id")
+				} else {
+					s.handleJoinRoom(peer, roomId)
+				}
+			}
 
 		case v == CommandCurrentRoom{}.String():
 			s.handleCurrentRoom(peer)
+
 		case v == CommandStartGame{}.String():
 			s.handleGameStart(peer)
+
 		case v == CommandCurrentGame{}.String():
 			s.handleCurrentGame(peer)
+		case v == CommandStay{}.String():
+			s.handlePlayerStay(peer)
 
 		default:
 			// fmt.Println("Message from normal string", v)
