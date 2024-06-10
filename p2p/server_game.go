@@ -24,7 +24,7 @@ func (s *Server) handleGameStart(p *Peer) {
 	// set the game status to be start
 	// set current hand to the player 1 and deal the cards to every palyer
 	room.GameState.SetStatus(GameStatusRoomStart, 2)
-	if err := s.broadcastSameMessage(roomId, fmt.Sprintf("\nGame will starting in 3 seconds . . .")); err != nil {
+	if err := s.broadcastSameMessage(roomId, fmt.Sprintln("\nGame will starting in 3 seconds . . .")); err != nil {
 		slog.Error(err.Error())
 		return
 	}
@@ -78,39 +78,72 @@ func (s *Server) handleGameStart(p *Peer) {
 	// if the dealer doesn't got pock everyone can ask for an extra card
 	if !dealerPok {
 		room.GameState.SetStatus(GameStatusExtraCard, 2)
-		s.broadcastSameMessage(roomId, "\ndealer doesn't got pok now it turn of player 1\n")
-		time.Sleep(500 * time.Millisecond)
-		go func() {
-			for _, player := range room.Players {
-				if player.isOwner {
-					continue
-				}
-				currentHand := room.GameState.currentHand.Get()
-				player.Send([]byte("\nNow it your turn to made an action if you not give an action in 15 seconds you will be stay automatically\n" +
-					"/stay (to don't ask for an extra card\n/more (to have 1 more extra card)\n"))
-
-				select {
-				case playerAction := <-player.PlayerActionCh:
-					if playerAction.Action == "stay" {
-						s.broadcastSameMessage(roomId, fmt.Sprintf("\nPlayer%d  choose to stay\nCard of Player%d are: %s\n", currentHand, currentHand, player.CurrentCard()))
-						player.PlayerAction.Set(int32(PlayerActionStay))
-						room.GameState.currentHand.Inc()
-					} else if playerAction.Action == "more" {
-						player.Card[2] = room.Deck[0]
-						room.Deck = room.Deck[1:]
-						s.broadcastSameMessage(roomId, fmt.Sprintf("\nPlayer%d  ask for extra card\n now Player %d got 3 cards\nCard of Player%d are: %s\n", currentHand, currentHand, currentHand, player.CurrentCard()))
-						player.PlayerAction.Set(int32(PlayerActionStay))
-						room.GameState.currentHand.Inc()
-					}
-				case <-time.After(15 * time.Second):
-					s.broadcastSameMessage(roomId, fmt.Sprintf("\nPlayer%d doesn't take any action so ,Player%d will be stay\n", currentHand, currentHand))
-					player.PlayerAction.Set(int32(PlayerActionStay))
-					room.GameState.currentHand.Inc()
-				}
-
-			}
-		}()
+		go s.handleExtraCardState(room, dealer)
 	}
+
+}
+
+// for the case that dealer doesn't get pok so every body can have an extra card
+func (s *Server) handleExtraCardState(room *Room, dealer *Player) {
+	s.broadcastSameMessage(room.RoomId, "\ndealer doesn't got pok now it turn of player 1\n")
+	time.Sleep(500 * time.Millisecond)
+
+	go func() {
+		for _, player := range room.Players {
+			if player.isOwner {
+				continue
+			}
+			currentHand := room.GameState.currentHand.Get()
+			player.Send([]byte("\nNow it your turn to made an action if you not give an action in 15 seconds you will be stay automatically\n" +
+				"/stay (to don't ask for an extra card\n/more (to have 1 more extra card)\n"))
+
+			select {
+			case playerAction := <-player.PlayerActionCh:
+				if playerAction.Action == "stay" {
+					s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nPlayer%d  choose to stay\nCard of Player%d are: %s\n", currentHand, currentHand, player.CurrentCard()))
+					player.PlayerAction.Set(int32(PlayerActionStay))
+					room.handleIncrementCurrentHand()
+
+				} else if playerAction.Action == "more" {
+					player.Card[2] = room.Deck[0]
+					room.Deck = room.Deck[1:]
+					s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nPlayer%d  ask for extra card\n now Player %d got 3 cards\nCard of Player%d are: %s\n", currentHand, currentHand, currentHand, player.CurrentCard()))
+					player.PlayerAction.Set(int32(PlayerActionExtraCard))
+					room.handleIncrementCurrentHand()
+				}
+			case <-time.After(15 * time.Second):
+				s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nPlayer%d doesn't take any action so ,Player%d will be stay\n", currentHand, currentHand))
+				player.PlayerAction.Set(int32(PlayerActionStay))
+				room.handleIncrementCurrentHand()
+			}
+		}
+		currentHand := room.GameState.currentHand.Get()
+		if currentHand == 1 {
+			dealer.Send([]byte("\nNow it your turn to made an action if you not give an action in 15 seconds you will be stay automatically\n" +
+				"/stay (to don't ask for an extra card\n/more (to have 1 more extra card)\n"))
+
+			select {
+			case playerAction := <-dealer.PlayerActionCh:
+				if playerAction.Action == "stay" {
+					s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nPlayer%d  choose to stay\nCard of Player%d are: %s\n", currentHand, currentHand, dealer.CurrentCard()))
+					dealer.PlayerAction.Set(int32(PlayerActionStay))
+
+				} else if playerAction.Action == "more" {
+					dealer.Card[2] = room.Deck[0]
+					room.Deck = room.Deck[1:]
+					s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nPlayer%d  ask for extra card\n now Player %d got 3 cards\nCard of Player%d are: %s\n", currentHand, currentHand, currentHand, dealer.CurrentCard()))
+					dealer.PlayerAction.Set(int32(PlayerActionExtraCard))
+				}
+			case <-time.After(15 * time.Second):
+				s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nPlayer%d doesn't take any action so ,Player%d will be stay\n", currentHand, currentHand))
+				dealer.PlayerAction.Set(int32(PlayerActionStay))
+			}
+		} else {
+			s.broadcastSameMessage(room.RoomId, fmt.Sprintln("Something went wrong with this room closing in 3 seconds"))
+
+		}
+
+	}()
 }
 
 func (s *Server) handlePlayerStay(p *Peer) {
@@ -161,6 +194,11 @@ func (s *Server) handleCurrentGame(p *Peer) {
 	currentHand := room.GameState.currentHand.Get()
 	text := fmt.Sprintf("\nGame Status: %s%d\nCurrent Hand: player%d\n", gameStatus, room.GameState.gameStatus.Get(), currentHand)
 	p.Send([]byte(text))
+}
+
+func handleThreeCard(room *Room, dealer *Player) {
+	// dealerPok, dealerPts, dealerDeng := dealer.CulculateTwoCard()
+
 }
 
 // handle for the case of 2 cards only because if someone got three card

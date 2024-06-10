@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -120,6 +121,15 @@ func CreateRoom(p *Peer) *Room {
 	}
 }
 
+func (r *Room) handleIncrementCurrentHand() {
+	currentHand := r.GameState.currentHand.Get()
+	if currentHand == int32(len(r.Players)) {
+		r.GameState.currentHand.Set(1)
+	} else {
+		r.GameState.currentHand.Inc()
+	}
+}
+
 func (g *GameState) SetStatus(s GameStatus, hand int32) {
 	g.gameStatus.Set(int32(s))
 	g.currentHand.Set(hand)
@@ -162,9 +172,19 @@ func (p *Player) currentPlayerAction() string {
 	}
 }
 
+// Check if a player has a Pok (8 or 9 points with the first two cards)
+// return isPok, value, deng
+func (p *Player) CulculateTwoCard() (bool, int, int) {
+	if len(p.Card) < 2 {
+		return false, 0, 1
+	}
+	points, deng := calculatePok(p.Card[:2])
+	return points == 8 || points == 9, points, deng
+}
+
 // Calculate the points for a given set of cards
 // it return a value of a card and the multiply of the bet
-func CalculatePok(cards []deck.Card) (int, int) {
+func calculatePok(cards []deck.Card) (int, int) {
 	total := 0
 	deng := 1
 	for _, card := range cards {
@@ -180,14 +200,72 @@ func CalculatePok(cards []deck.Card) (int, int) {
 	return int(total % 10), int(deng)
 }
 
-// Check if a player has a Pok (8 or 9 points with the first two cards)
-// return isPok, value, deng
-func (p *Player) CulculateTwoCard() (bool, int, int) {
-	if len(p.Card) < 2 {
-		return false, 0, 1
+// return isSpecial, value, suit, deng
+// suit will be ignore if isSpecial is false
+func (p *Player) CulculateThreeCard() (bool, int, deck.Suit, int) {
+
+	// if it was three of a kind any value we return is the same and deng will be 5
+	if val, suit, isThreeOfAKind := isThreeOfAKind(p.Card[:]); isThreeOfAKind {
+		return true, val, suit, 5
 	}
-	points, deng := CalculatePok(p.Card[:2])
-	return points == 8 || points == 9, points, deng
+
+	// if it straight deng will be 3 and we will return the most value of the straight out
+	// TODO: if dealer and player straight we might need to compare with suit
+	if val, suit, isStraight := isStraight(p.Card[:]); isStraight {
+		return true, val, suit, 3
+	}
+
+	if val, suit, isStraight := isThreeOfJQK(p.Card[:]); isStraight {
+		return true, val, suit, 3
+	}
+
+	totalPts := 0
+	deng := 1
+	for _, card := range p.Card {
+		val := card.Value
+		if val > 10 {
+			val = 10
+		}
+		totalPts += val
+	}
+
+	if (p.Card[0].Suit == p.Card[1].Suit && p.Card[1].Suit == p.Card[2].Suit) ||
+		(p.Card[0].Value == p.Card[1].Value && p.Card[1].Value == p.Card[2].Value) {
+		deng = 3
+	}
+
+	return false, totalPts, 0, deng
+
+}
+
+func isThreeOfAKind(cards []deck.Card) (int, deck.Suit, bool) {
+	return cards[0].Value, cards[0].Suit, cards[0].Value == cards[1].Value && cards[1].Value == cards[2].Value
+}
+
+func isThreeOfJQK(cards []deck.Card) (int, deck.Suit, bool) {
+
+	values := []deck.Card{cards[0], cards[1], cards[2]}
+	sort.Slice(values, func(i, j int) bool {
+		return values[i].Value < values[j].Value
+	})
+
+	for _, card := range cards {
+		if card.Value < 11 || card.Value > 13 {
+			return values[2].Value, values[2].Suit, false
+		}
+	}
+
+	return values[2].Value, values[2].Suit, true
+}
+
+func isStraight(cards []deck.Card) (int, deck.Suit, bool) {
+
+	values := []deck.Card{cards[0], cards[1], cards[2]}
+	sort.Slice(values, func(i, j int) bool {
+		return values[i].Value < values[j].Value
+	})
+
+	return cards[2].Value, cards[2].Suit, values[0].Value+1 == values[1].Value && values[1].Value+1 == values[2].Value
 }
 
 // return a string of a current value and suit of the card that you holding

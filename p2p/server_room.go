@@ -11,7 +11,6 @@ func (s *Server) handleCreateRoom(p *Peer) *Room {
 	roomId, exist := s.playerInAnyRoom(p)
 	if !exist {
 		room := CreateRoom(p)
-
 		s.addRoom(room)
 		p.Send([]byte(fmt.Sprintf("\nCreate room success!\nYour roomId is : %s\nYou are player %d\n", room.RoomId, 1)))
 		return room
@@ -21,12 +20,6 @@ func (s *Server) handleCreateRoom(p *Peer) *Room {
 		return nil
 	}
 
-}
-
-func (s *Server) addRoom(room *Room) {
-	defer room.roomLock.Unlock()
-	room.roomLock.Lock()
-	s.rooms[room.RoomId] = room
 }
 
 /*
@@ -111,4 +104,10 @@ func (s *Server) playerInAnyRoom(p *Peer) (string, bool) {
 
 	return "", exist
 
+}
+
+func (s *Server) addRoom(room *Room) {
+	defer room.roomLock.Unlock()
+	room.roomLock.Lock()
+	s.rooms[room.RoomId] = room
 }
