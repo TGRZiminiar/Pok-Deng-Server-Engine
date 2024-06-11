@@ -3,7 +3,6 @@ package p2p
 import (
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/tgrziminiar/pok-deng-server-engine/deck"
@@ -85,7 +84,7 @@ func (s *Server) handleGameStart(p *Peer) {
 
 // for the case that dealer doesn't get pok so every body can have an extra card
 func (s *Server) handleExtraCardState(room *Room, dealer *Player) {
-	s.broadcastSameMessage(room.RoomId, "\ndealer doesn't got pok now it turn of player 1\n")
+	s.broadcastSameMessage(room.RoomId, "\ndealer doesn't got pok now it turn of player 2\n")
 	time.Sleep(500 * time.Millisecond)
 
 	go func() {
@@ -107,7 +106,7 @@ func (s *Server) handleExtraCardState(room *Room, dealer *Player) {
 				} else if playerAction.Action == "more" {
 					player.Card[2] = room.Deck[0]
 					room.Deck = room.Deck[1:]
-					s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nPlayer%d  ask for extra card\n now Player %d got 3 cards\nCard of Player%d are: %s\n", currentHand, currentHand, currentHand, player.CurrentCard()))
+					s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nPlayer%d  ask for extra card\nnow Player %d got 3 cards\nCard of Player%d are: %s\n", currentHand, currentHand, currentHand, player.CurrentCard()))
 					player.PlayerAction.Set(int32(PlayerActionExtraCard))
 					room.handleIncrementCurrentHand()
 				}
@@ -117,6 +116,7 @@ func (s *Server) handleExtraCardState(room *Room, dealer *Player) {
 				room.handleIncrementCurrentHand()
 			}
 		}
+
 		currentHand := room.GameState.currentHand.Get()
 		if currentHand == 1 {
 			dealer.Send([]byte("\nNow it your turn to made an action if you not give an action in 15 seconds you will be stay automatically\n" +
@@ -125,23 +125,26 @@ func (s *Server) handleExtraCardState(room *Room, dealer *Player) {
 			select {
 			case playerAction := <-dealer.PlayerActionCh:
 				if playerAction.Action == "stay" {
-					s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nPlayer%d  choose to stay\nCard of Player%d are: %s\n", currentHand, currentHand, dealer.CurrentCard()))
+					s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nDealer choose to stay\nCard of Dealer are: %s\n", dealer.CurrentCard()))
 					dealer.PlayerAction.Set(int32(PlayerActionStay))
 
 				} else if playerAction.Action == "more" {
 					dealer.Card[2] = room.Deck[0]
 					room.Deck = room.Deck[1:]
-					s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nPlayer%d  ask for extra card\n now Player %d got 3 cards\nCard of Player%d are: %s\n", currentHand, currentHand, currentHand, dealer.CurrentCard()))
+					s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nDealer ask for extra card\nnow Dealer got 3 cards\nCard of Dealer are: %s\n", dealer.CurrentCard()))
 					dealer.PlayerAction.Set(int32(PlayerActionExtraCard))
 				}
 			case <-time.After(15 * time.Second):
-				s.broadcastSameMessage(room.RoomId, fmt.Sprintf("\nPlayer%d doesn't take any action so ,Player%d will be stay\n", currentHand, currentHand))
+				s.broadcastSameMessage(room.RoomId, "\nDealer doesn't take any action so ,Dealer will be stay\n")
 				dealer.PlayerAction.Set(int32(PlayerActionStay))
 			}
 		} else {
+			// TODO: should handle more error here
 			s.broadcastSameMessage(room.RoomId, fmt.Sprintln("Something went wrong with this room closing in 3 seconds"))
 
 		}
+		// all the player can't take anymore action
+		s.handleThreeCard(room, dealer)
 
 	}()
 }
@@ -168,17 +171,9 @@ func (s *Server) handlePlayerMoreExtraCard(p *Peer) {
 // return a string of a current value and suit of the card that you holding
 // TODO: may be we use the player to check the current card instead
 func (s *Server) CurrentCard(p *Peer, roomId string) string {
-
 	room := s.rooms[roomId]
-	peer := room.Players[p.conn.RemoteAddr().String()]
-	var cards []string
-	for _, v := range peer.Card {
-		if v.Value != 0 {
-			cardDetail := fmt.Sprintf("%s%s", deck.SuitToUnicode(v.Suit), v.SpecialCardValue(v.Value))
-			cards = append(cards, cardDetail)
-		}
-	}
-	return fmt.Sprint("\n", strings.Join(cards, " "), "\n")
+	player := room.Players[p.conn.RemoteAddr().String()]
+	return player.CurrentCard()
 }
 
 // Send out the current game status and current hand
@@ -196,9 +191,88 @@ func (s *Server) handleCurrentGame(p *Peer) {
 	p.Send([]byte(text))
 }
 
-func handleThreeCard(room *Room, dealer *Player) {
-	// dealerPok, dealerPts, dealerDeng := dealer.CulculateTwoCard()
+func (s *Server) handleThreeCard(room *Room, dealer *Player) {
+	dealerSpecial, dealerPts, dealerSuit, dealerDeng := dealer.CulculateThreeCard()
+	for _, player := range room.Players {
+		if player.isOwner {
+			// s.broadcastSameMessage(room.RoomId, fmt.Sprintf("Dealer (Player1) got %s\n", player.CurrentCard()))
+			continue
+		}
+		playerSpecial, playerPts, playerSuit, playerDeng := player.CulculateThreeCard()
 
+		// dealerSpecial == true
+		// some special case here
+		if dealerSpecial != NotSpecialWinning {
+			_ = dealerSuit
+			_ = playerSuit
+
+		} else {
+			resultMessage := ""
+			// if player got special and dealer is not special
+			if playerSpecial != NotSpecialWinning {
+				player.Money += player.Bet * playerDeng
+				dealer.Money -= player.Bet * playerDeng
+				resultMessage = fmt.Sprintf(
+					"Player%d got %s won to the dealer by %s earn %d Player%d current balance is %d\n",
+					player.HandNumber,
+					player.CurrentCard(),
+					playerSpecial.String(),
+					player.Bet*playerDeng,
+					player.HandNumber,
+					player.Money)
+
+			} else {
+				if dealerPts > playerPts {
+					player.Money -= player.Bet * playerDeng
+					dealer.Money += player.Bet * playerDeng
+					resultMessage = fmt.Sprintf(
+						"Player%d got %s lost to the dealer: %d Player%d current balance is %d\n",
+						player.HandNumber,
+						player.CurrentCard(),
+						player.Bet*playerDeng,
+						player.HandNumber,
+						player.Money)
+				} else if dealerPts == playerPts && dealerDeng == playerDeng {
+					resultMessage = fmt.Sprintf("Player%d draw with the dealer\n", player.HandNumber)
+				} else if dealerPts == playerPts && dealerDeng > playerDeng {
+					player.Money -= player.Bet * (dealerDeng - playerDeng)
+					dealer.Money += player.Bet * (dealerDeng - playerDeng)
+					resultMessage = fmt.Sprintf(
+						"Player%d got %s lost to the dealer deng: %d Player%d current balance is %d\n",
+						player.HandNumber,
+						player.CurrentCard(),
+						player.Bet*(dealerDeng-playerDeng),
+						player.HandNumber,
+						player.Money)
+
+				} else if dealerPts == playerPts && dealerDeng < playerDeng {
+					player.Money += player.Bet * (playerDeng - dealerDeng)
+					dealer.Money -= player.Bet * (playerDeng - dealerDeng)
+					resultMessage = fmt.Sprintf(
+						"Player%d got %s win to the dealer deng: %d Player%d current balance is %d\n",
+						player.HandNumber,
+						player.CurrentCard(),
+						player.Bet*(playerDeng-dealerDeng),
+						player.HandNumber,
+						player.Money)
+
+				} else if playerPts > dealerPts {
+					player.Money += player.Bet * playerDeng
+					dealer.Money -= player.Bet * playerDeng
+					resultMessage = fmt.Sprintf(
+						"Player%d got %s won to the dealer points: %d Player%d current balance is %d\n",
+						player.HandNumber,
+						player.CurrentCard(),
+						player.Bet*playerDeng,
+						player.HandNumber,
+						player.Money)
+				}
+
+			}
+
+			s.broadcastSameMessage(room.RoomId, resultMessage)
+		}
+	}
 }
 
 // handle for the case of 2 cards only because if someone got three card

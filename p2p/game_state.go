@@ -172,8 +172,8 @@ func (p *Player) currentPlayerAction() string {
 	}
 }
 
-// Check if a player has a Pok (8 or 9 points with the first two cards)
 // return isPok, value, deng
+// Check if a player has a Pok (8 or 9 points with the first two cards)
 func (p *Player) CulculateTwoCard() (bool, int, int) {
 	if len(p.Card) < 2 {
 		return false, 0, 1
@@ -182,8 +182,8 @@ func (p *Player) CulculateTwoCard() (bool, int, int) {
 	return points == 8 || points == 9, points, deng
 }
 
-// Calculate the points for a given set of cards
 // it return a value of a card and the multiply of the bet
+// Calculate the points for a given set of cards
 func calculatePok(cards []deck.Card) (int, int) {
 	total := 0
 	deng := 1
@@ -200,23 +200,47 @@ func calculatePok(cards []deck.Card) (int, int) {
 	return int(total % 10), int(deng)
 }
 
+type SpecialWinning int32
+
+const (
+	Straight SpecialWinning = iota
+	ThreeOfAKind
+	ThreeOfJQK
+	NotSpecialWinning
+)
+
+func (sw SpecialWinning) String() string {
+	switch sw {
+	case Straight:
+		return "Straight"
+	case ThreeOfAKind:
+		return "Three Of A Kind"
+	case ThreeOfJQK:
+		return "Three Of JQK"
+	case NotSpecialWinning:
+		return "Not Special Winning"
+	default:
+		return "Unknown"
+	}
+}
+
 // return isSpecial, value, suit, deng
 // suit will be ignore if isSpecial is false
-func (p *Player) CulculateThreeCard() (bool, int, deck.Suit, int) {
+func (p *Player) CulculateThreeCard() (SpecialWinning, int, deck.Suit, int) {
 
 	// if it was three of a kind any value we return is the same and deng will be 5
 	if val, suit, isThreeOfAKind := isThreeOfAKind(p.Card[:]); isThreeOfAKind {
-		return true, val, suit, 5
+		return ThreeOfAKind, val, suit, 5
 	}
 
 	// if it straight deng will be 3 and we will return the most value of the straight out
 	// TODO: if dealer and player straight we might need to compare with suit
 	if val, suit, isStraight := isStraight(p.Card[:]); isStraight {
-		return true, val, suit, 3
+		return Straight, val, suit, 3
 	}
 
 	if val, suit, isStraight := isThreeOfJQK(p.Card[:]); isStraight {
-		return true, val, suit, 3
+		return ThreeOfJQK, val, suit, 3
 	}
 
 	totalPts := 0
@@ -234,7 +258,7 @@ func (p *Player) CulculateThreeCard() (bool, int, deck.Suit, int) {
 		deng = 3
 	}
 
-	return false, totalPts, 0, deng
+	return NotSpecialWinning, totalPts % 10, 0, deng
 
 }
 
@@ -278,5 +302,6 @@ func (p *Player) CurrentCard() string {
 			cards = append(cards, cardDetail)
 		}
 	}
+	// return fmt.Sprint("\n", strings.Join(cards, " "), "\n")
 	return fmt.Sprint(strings.Join(cards, " "))
 }

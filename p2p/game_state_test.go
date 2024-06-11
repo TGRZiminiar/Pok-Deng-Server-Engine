@@ -55,6 +55,34 @@ func TestCulculateThreeCard(t *testing.T) {
 				deng      int
 			}{isSpecial: true, value: 11, suit: deck.Spades, deng: 5},
 		},
+		{
+			name: "Normal Card",
+			playerCards: []deck.Card{
+				{Value: 6, Suit: deck.Spades},
+				{Value: 2, Suit: deck.Diamonds},
+				{Value: 3, Suit: deck.Clubs},
+			},
+			expected: struct {
+				isSpecial bool
+				value     int
+				suit      deck.Suit
+				deng      int
+			}{isSpecial: false, value: 1, suit: deck.Spades, deng: 1},
+		},
+		{
+			name: "Three Deng Normal Card",
+			playerCards: []deck.Card{
+				{Value: 6, Suit: deck.Spades},
+				{Value: 1, Suit: deck.Spades},
+				{Value: 11, Suit: deck.Spades},
+			},
+			expected: struct {
+				isSpecial bool
+				value     int
+				suit      deck.Suit
+				deng      int
+			}{isSpecial: false, value: 7, suit: deck.Spades, deng: 3},
+		},
 	}
 
 	for _, tc := range testCases {
