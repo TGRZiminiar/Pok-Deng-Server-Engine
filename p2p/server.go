@@ -121,7 +121,13 @@ func (s *Server) handleMessage(msg *Message) error {
 				"1. /create-room \t\t[to create a room and you will be a dealer, you can create only one room per time]\n" +
 					"2. /list-room \t\t\t[list all the rooms that you can join]\n" +
 					"3. /join-room (roomId) \t\t[join the room with roomId]\n" +
-					"4. /delete-room (roomId) \t[only owner can delete and also]\n"))
+					"5. /current-room \t\t[show the current toom that you are exist]\n" +
+					"6. /start \t\t\t[start the game, only the dealer (player1) have a privilege to start the game]\n" +
+					"7. /current-game \t\t[show the current status of the game, current hand and which hand are you]\n" +
+					"8. /stay \t\t\t[if you are satisfy with two cards you can choose stay]\n" +
+					"9. /more \t\t\t[if you are not satisfy with two cards you ask for an extra card]\n" +
+					"10. /close-room \t\t[close the room and every player will get leave the room automatically, only the dealer (player1) have a privilege to close the room]\n",
+			))
 
 		case v == CommandCreateRoom{}.String():
 			s.handleCreateRoom(peer)
@@ -155,6 +161,10 @@ func (s *Server) handleMessage(msg *Message) error {
 			s.handlePlayerStay(peer)
 		case v == CommandExtraCard{}.String():
 			s.handlePlayerMoreExtraCard(peer)
+		case v == CommandRemoveRoom{}.String():
+			s.handleRemoveRoom(peer)
+		case v == CommandQuitRoom{}.String():
+			s.handleQuitRoom(peer)
 
 		default:
 			// fmt.Println("Message from normal string", v)

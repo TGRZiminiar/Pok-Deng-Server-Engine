@@ -58,3 +58,15 @@ type CommandExtraCard struct{}
 func (cmd CommandExtraCard) String() string {
 	return "/more"
 }
+
+type CommandRemoveRoom struct{}
+
+func (cmd CommandRemoveRoom) String() string {
+	return "/close-room"
+}
+
+type CommandQuitRoom struct{}
+
+func (cmd CommandQuitRoom) String() string {
+	return "/quit"
+}
