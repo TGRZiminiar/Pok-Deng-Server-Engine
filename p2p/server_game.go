@@ -217,6 +217,7 @@ func (s *Server) handleCurrentGame(p *Peer) {
 
 }
 
+// handle when player got three cards the test file is on the server_game_test
 func (s *Server) handleThreeCard(room *Room, dealer *Player) {
 	dealerSpecial, dealerPts, dealerSuit, dealerDeng := dealer.CulculateThreeCard()
 	for _, player := range room.Players {
@@ -304,8 +305,8 @@ func (s *Server) handleThreeCard(room *Room, dealer *Player) {
 								player.HandNumber,
 								player.Money)
 						} else if dealerSuit > playerSuit {
-							player.Money += player.Bet * playerDeng
-							dealer.Money -= player.Bet * playerDeng
+							player.Money -= player.Bet * playerDeng
+							dealer.Money += player.Bet * playerDeng
 							resultMessage = fmt.Sprintf(
 								"Player%d got %s won to the dealer by %s earn %d Player%d current balance is %d\n",
 								player.HandNumber,

@@ -19,7 +19,6 @@ type Server struct {
 	peerLock     sync.RWMutex
 	peers        map[string]*Peer
 	addPeer      chan *Peer
-	delPeer      chan *Peer
 	msgCh        chan *Message
 	rooms        map[string]*Room
 }
@@ -36,7 +35,6 @@ func NewServer(cfg ServerConfig) *Server {
 		peerLock:     sync.RWMutex{},
 		peers:        make(map[string]*Peer),
 		addPeer:      make(chan *Peer, 10),
-		delPeer:      make(chan *Peer),
 		tcpTransport: transport,
 		msgCh:        make(chan *Message, 100),
 		rooms:        make(map[string]*Room),
@@ -170,7 +168,6 @@ func (s *Server) handleMessage(msg *Message) error {
 			// fmt.Println("Message from normal string", v)
 		}
 	default:
-		fmt.Println("default case of type here", v)
 	}
 	return nil
 }

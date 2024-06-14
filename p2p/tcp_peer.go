@@ -2,15 +2,13 @@ package p2p
 
 import (
 	"bufio"
-	"encoding/gob"
 	"fmt"
 	"net"
 )
 
 type Peer struct {
-	conn       net.Conn
-	listenAddr string
-	outbound   bool
+	conn     net.Conn
+	outbound bool
 }
 
 func (p *Peer) PeerReadLoop(msgch chan *Message) {
@@ -49,7 +47,4 @@ func (p *Peer) Send(message []byte) {
 	if p.conn != nil {
 		p.conn.Write(message)
 	}
-}
-func init() {
-	gob.Register(CommandHelp{})
 }
