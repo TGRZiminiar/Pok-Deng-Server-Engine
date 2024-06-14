@@ -41,7 +41,7 @@ func NewServer(cfg ServerConfig) *Server {
 		msgCh:        make(chan *Message, 100),
 		rooms:        make(map[string]*Room),
 	}
-	// when accpet the connection so we can trigger the read loop usingb channel
+	// when accpet the connection so we can trigger the read loop using channel
 	transport.AddPeer = s.addPeer
 	return s
 }

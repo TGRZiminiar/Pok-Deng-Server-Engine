@@ -1,4 +1,3 @@
-// TODO: if player go to state of an extracard we need to consider the player that alread got a pok also
 package p2p
 
 import (
@@ -153,7 +152,6 @@ func (s *Server) handleExtraCardState(room *Room, dealer *Player) {
 				dealer.PlayerAction.Set(int32(PlayerActionStay))
 			}
 		} else {
-			// TODO: should handle more error here
 			s.broadcastSameMessage(room.RoomId, fmt.Sprintln("Something went wrong with this room closing in 3 seconds"))
 
 		}
@@ -193,7 +191,6 @@ func (s *Server) handlePlayerMoreExtraCard(p *Peer) {
 }
 
 // return a string of a current value and suit of the card that you holding
-// TODO: may be we use the player to check the current card instead
 func (s *Server) CurrentCard(p *Peer, roomId string) string {
 	room := s.rooms[roomId]
 	player := room.Players[p.conn.RemoteAddr().String()]
@@ -217,6 +214,7 @@ func (s *Server) handleCurrentGame(p *Peer) {
 		room.Players[p.conn.RemoteAddr().String()].HandNumber,
 		currentHand)
 	p.Send([]byte(text))
+
 }
 
 func (s *Server) handleThreeCard(room *Room, dealer *Player) {
@@ -240,14 +238,92 @@ func (s *Server) handleThreeCard(room *Room, dealer *Player) {
 		}
 
 		playerSpecial, playerPts, playerSuit, playerDeng := player.CulculateThreeCard()
+		resultMessage := ""
 		// dealerSpecial == true
 		// some special case here
+		// TODO: handle special case here
 		if dealerSpecial != NotSpecialWinning {
-			_ = dealerSuit
-			_ = playerSuit
+
+			if playerDeng > dealerDeng {
+				player.Money += player.Bet * playerDeng
+				dealer.Money -= player.Bet * playerDeng
+				resultMessage = fmt.Sprintf(
+					"Player%d got %s won to the dealer by %s earn %d Player%d current balance is %d\n",
+					player.HandNumber,
+					player.CurrentCard(),
+					playerSpecial.String(),
+					player.Bet*playerDeng,
+					player.HandNumber,
+					player.Money)
+			} else if dealerDeng > playerDeng {
+				player.Money += player.Bet * playerDeng
+				dealer.Money -= player.Bet * playerDeng
+				resultMessage = fmt.Sprintf(
+					"Player%d got %s lost to the dealer by %s earn %d Player%d current balance is %d\n",
+					player.HandNumber,
+					player.CurrentCard(),
+					playerSpecial.String(),
+					player.Bet*playerDeng,
+					player.HandNumber,
+					player.Money)
+				// if deng is equal and the type of the winning is not the same it's drawn
+			} else if dealerDeng == playerDeng {
+				if dealerSpecial == playerSpecial {
+					if playerPts > dealerPts {
+						player.Money += player.Bet * playerDeng
+						dealer.Money -= player.Bet * playerDeng
+						resultMessage = fmt.Sprintf(
+							"Player%d got %s won to the dealer by %s earn %d Player%d current balance is %d\n",
+							player.HandNumber,
+							player.CurrentCard(),
+							playerSpecial.String(),
+							player.Bet*playerDeng,
+							player.HandNumber,
+							player.Money)
+					} else if playerPts < dealerPts {
+						player.Money -= player.Bet * playerDeng
+						dealer.Money += player.Bet * playerDeng
+						resultMessage = fmt.Sprintf(
+							"Player%d got %s lost to the dealer by %s earn %d Player%d current balance is %d\n",
+							player.HandNumber,
+							player.CurrentCard(),
+							playerSpecial.String(),
+							player.Bet*playerDeng,
+							player.HandNumber,
+							player.Money)
+					} else if playerPts == dealerPts {
+						if playerSuit > dealerSuit {
+							player.Money += player.Bet * playerDeng
+							dealer.Money -= player.Bet * playerDeng
+							resultMessage = fmt.Sprintf(
+								"Player%d got %s won to the dealer by %s earn %d Player%d current balance is %d\n",
+								player.HandNumber,
+								player.CurrentCard(),
+								playerSpecial.String(),
+								player.Bet*playerDeng,
+								player.HandNumber,
+								player.Money)
+						} else if dealerSuit > playerSuit {
+							player.Money += player.Bet * playerDeng
+							dealer.Money -= player.Bet * playerDeng
+							resultMessage = fmt.Sprintf(
+								"Player%d got %s won to the dealer by %s earn %d Player%d current balance is %d\n",
+								player.HandNumber,
+								player.CurrentCard(),
+								playerSpecial.String(),
+								player.Bet*playerDeng,
+								player.HandNumber,
+								player.Money)
+						} else {
+							resultMessage = fmt.Sprintf("Player%d draw with the dealer\n", player.HandNumber)
+
+						}
+
+					}
+				}
+			}
 
 		} else {
-			resultMessage := ""
 			// if player got special and dealer is not special
 			if playerSpecial != NotSpecialWinning {
 				player.Money += player.Bet * playerDeng
@@ -310,8 +386,8 @@ func (s *Server) handleThreeCard(room *Room, dealer *Player) {
 
 			}
 
-			s.broadcastSameMessage(room.RoomId, resultMessage)
 		}
+		s.broadcastSameMessage(room.RoomId, resultMessage)
 	}
 	room.GameState.SetStatus(GameStatusEnd, 1)
 	s.broadcastSameMessage(room.RoomId, "\nSince the game is end dealer have 2 choices\n1. /start (to continue the game)\n2. /quit to close the room\n")
@@ -326,12 +402,14 @@ func handleTwoCard(room *Room, dealer *Player) {
 			continue
 		}
 
-		if player.PlayerAction.Get() == int32(PlayerActionPok) {
+		playerPok, playerPts, playerDeng := player.CulculateTwoCard()
 
+		if player.PlayerAction.Get() == int32(PlayerActionPok) {
+			player.Money += player.Bet * playerDeng
+			dealer.Money -= player.Bet * playerDeng
 			continue
 		}
 
-		playerPok, playerPts, playerDeng := player.CulculateTwoCard()
 		resultMessage := ""
 
 		// if dealer got pok

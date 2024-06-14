@@ -25,10 +25,10 @@ func (s Suit) String() string {
 }
 
 const (
-	Spades   Suit = iota // 0
-	Hearts               // 1
+	Clubs    Suit = iota // 0
 	Diamonds             // 2
-	Clubs                // 3
+	Hearts               // 1
+	Spades               // 0
 )
 
 type Card struct {

@@ -224,23 +224,28 @@ func (sw SpecialWinning) String() string {
 	}
 }
 
+const (
+	fiveDeng  = 5
+	threeDeng = 3
+)
+
 // return isSpecial, value, suit, deng
 // suit will be ignore if isSpecial is false
 func (p *Player) CulculateThreeCard() (SpecialWinning, int, deck.Suit, int) {
 
 	// if it was three of a kind any value we return is the same and deng will be 5
 	if val, suit, isThreeOfAKind := isThreeOfAKind(p.Card[:]); isThreeOfAKind {
-		return ThreeOfAKind, val, suit, 5
+		return ThreeOfAKind, val, suit, fiveDeng
 	}
 
 	// if it straight deng will be 3 and we will return the most value of the straight out
 	// TODO: if dealer and player straight we might need to compare with suit
 	if val, suit, isStraight := isStraight(p.Card[:]); isStraight {
-		return Straight, val, suit, 3
+		return Straight, val, suit, threeDeng
 	}
 
 	if val, suit, isStraight := isThreeOfJQK(p.Card[:]); isStraight {
-		return ThreeOfJQK, val, suit, 3
+		return ThreeOfJQK, val, suit, threeDeng
 	}
 
 	totalPts := 0
@@ -255,7 +260,7 @@ func (p *Player) CulculateThreeCard() (SpecialWinning, int, deck.Suit, int) {
 
 	if (p.Card[0].Suit == p.Card[1].Suit && p.Card[1].Suit == p.Card[2].Suit) ||
 		(p.Card[0].Value == p.Card[1].Value && p.Card[1].Value == p.Card[2].Value) {
-		deng = 3
+		deng = threeDeng
 	}
 
 	return NotSpecialWinning, totalPts % 10, 0, deng
@@ -266,6 +271,7 @@ func isThreeOfAKind(cards []deck.Card) (int, deck.Suit, bool) {
 	return cards[0].Value, cards[0].Suit, cards[0].Value == cards[1].Value && cards[1].Value == cards[2].Value
 }
 
+// isThreeOfJQK return the highest value and the highest suit and it's straight or not
 func isThreeOfJQK(cards []deck.Card) (int, deck.Suit, bool) {
 
 	values := []deck.Card{cards[0], cards[1], cards[2]}
@@ -282,6 +288,7 @@ func isThreeOfJQK(cards []deck.Card) (int, deck.Suit, bool) {
 	return values[2].Value, values[2].Suit, true
 }
 
+// isStraight return the highest value and the highest suit and it's straight or not
 func isStraight(cards []deck.Card) (int, deck.Suit, bool) {
 
 	values := []deck.Card{cards[0], cards[1], cards[2]}
@@ -289,7 +296,7 @@ func isStraight(cards []deck.Card) (int, deck.Suit, bool) {
 		return values[i].Value < values[j].Value
 	})
 
-	return cards[2].Value, cards[2].Suit, values[0].Value+1 == values[1].Value && values[1].Value+1 == values[2].Value
+	return values[2].Value, values[2].Suit, values[0].Value+1 == values[1].Value && values[1].Value+1 == values[2].Value
 }
 
 // return a string of a current value and suit of the card that you holding
